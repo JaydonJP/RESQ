@@ -188,8 +188,10 @@ def write_scenario_additionals(
         {
             "id": ROUTE_LABEL,
             "type": "ambulance_route",
-            "color": "0,0.82,0.42",
-            "layer": "100",
+            # Translucent, above the roads but below vehicles (layer 20) so vehicles,
+            # including the ambulance, are drawn on top of the route line.
+            "color": "0,0.82,0.42,0.55",
+            "layer": "20",
             "fill": "false",
             "lineWidth": "2.3",
             "shape": " ".join(f"{x:.2f},{y:.2f}" for x, y in route_shape),

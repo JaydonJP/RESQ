@@ -12,12 +12,13 @@
                 <entry color="91,137,153" name="waterway"/>
             </colorScheme>
         </edges>
-        <vehicles vehicleMode="8" vehicleQuality="2" vehicle_minSize="7.00"
-                  vehicle_exaggeration="1.15" vehicle_constantSize="1" showBlinker="1"
-                  vehicleName_show="1" vehicleName_size="55.00" vehicleName_color="30,40,50"
+        <vehicles vehicleMode="0" vehicleQuality="2" vehicle_minSize="1.00"
+                  vehicle_exaggeration="1.00" vehicle_constantSize="1"
+                  vehicle_constantSizeSelected="1" showBlinker="1"
+                  vehicleName_show="0" vehicleName_size="55.00" vehicleName_color="30,40,50"
                   vehicleName_constantSize="1" vehicleName_onlySelected="1">
             <colorScheme name="given vehicle/type/route color">
-                <entry color="yellow"/>
+                <entry color="84,104,124"/>
             </colorScheme>
         </vehicles>
         <junctions junctionMode="2" drawShape="1" drawCrossingsAndWalkingareas="1"

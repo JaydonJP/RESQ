@@ -21,9 +21,11 @@ workspace, run:
 
 In the GUI the run starts immediately. Use the play/pause/step buttons in the
 toolbar, change the *Delay* box to speed up or slow down, scroll to zoom, and
-drag to pan. Right-click the ambulance (`resq_ambulance`) and choose
-*Start Tracking* to follow it. The window closes when the ambulance arrives or
-after 900 simulated seconds, and the trip metrics are printed in the terminal.
+drag to pan. The ambulance is circled in red and stays icon-sized when zoomed
+out; all other vehicles are drawn to road scale. When the ambulance reaches the
+hospital its trip metrics are printed in the terminal, and the simulation keeps
+running (and stays pausable) with background traffic until the config's end
+time. The window never closes on its own; close it to finish.
 
 The builder discovers the project-local SUMO installation automatically. A fresh
 environment can install it with `pip install -e ".[sumo]"`.
@@ -43,10 +45,11 @@ Administrative and Metro Water supply-zone boundaries are excluded because they
 were drawn as blue areas over roads. OSM waterways are centrelines, so
 `landscape.py` clips them to the study area and gives them a realistic width;
 the Cooum is drawn from its centreline because its riverbank multipolygon is
-incomplete in the bounding-box download. Vehicles use SUMO's
-constant-size-when-zoomed-out mode, so they remain visible at overview scale and
-return to road scale as you zoom in. The signal timings are generated estimates
-and have not been field-verified.
+incomplete in the bounding-box download. In `review.view.xml`, only selected
+vehicles use SUMO's constant-size mode; `run_sumo.py` selects the ambulance, so
+it alone stays visible at overview scale while background traffic (muted slate)
+stays to road scale. The signal timings are generated estimates and have not
+been field-verified.
 
 The checked-in bounding box is the project starting point around Apollo Hospitals,
 Greams Road. Before collecting final results, inspect every signal, one-way, turn

@@ -51,15 +51,31 @@ def _planned_route(network: sumolib.net.Net) -> tuple[list[object], float, float
     return edges, start_snap_m, finish_snap_m
 
 
+def _spotlight(connection: traci.connection.Connection) -> None:
+    """Make the ambulance easy to find in sumo-gui.
+
+    Selecting it shows its name label and, via ``vehicle_constantSizeSelected``
+    in review.view.xml, keeps only the ambulance readable when zoomed out while
+    every other vehicle stays to scale. The highlight draws a ring around it.
+    Background traffic (randomTrips' uncoloured "passenger" type) is muted so the
+    red ambulance stands out.
+    """
+
+    connection.vehicletype.setColor("passenger", (84, 104, 124, 255))
+    connection.gui.toggleSelection(AMBULANCE_ID)
+    connection.vehicle.highlight(AMBULANCE_ID, color=(255, 30, 30, 255), size=30)
+
+
 def run(*, gui: bool = False, delay_ms: int = 50, end_s: float = 900) -> dict[str, object]:
     if not CONFIG.exists() or not NETWORK.exists() or not ROUTE_FILE.exists():
         raise SystemExit("Generate the network first: python sim/chennai/build_network.py")
-    command = [
-        str(_binary(gui)), "-c", str(CONFIG), "--start", "--quit-on-end",
-        "--no-step-log", "true", "--end", str(end_s),
-    ]
+    command = [str(_binary(gui)), "-c", str(CONFIG), "--start", "--no-step-log", "true"]
     if gui:
+        # No --quit-on-end: the window must stay open for the demo. The config's
+        # end time keeps background traffic running after the ambulance arrives.
         command.extend(["--delay", str(max(0, delay_ms))])
+    else:
+        command.extend(["--quit-on-end", "--end", str(end_s)])
     traci.start(command, label="resq-sumo")
     connection = traci.getConnection("resq-sumo")
     try:
@@ -83,6 +99,8 @@ def run(*, gui: bool = False, delay_ms: int = 50, end_s: float = 900) -> dict[st
                 if started_at is None:
                     started_at = connection.vehicle.getDeparture(AMBULANCE_ID)
                     connection.vehicle.setSpeedMode(AMBULANCE_ID, 7)
+                    if gui:
+                        _spotlight(connection)
                 speed = connection.vehicle.getSpeed(AMBULANCE_ID)
                 max_speed = max(max_speed, speed)
                 halting_steps += int(speed < 0.1)
@@ -110,17 +128,45 @@ def run(*, gui: bool = False, delay_ms: int = 50, end_s: float = 900) -> dict[st
             "all_vehicles_arrived": total_arrived,
             "collision_events": total_collisions,
         }
-        print(json.dumps(result, indent=2))
+        print(json.dumps(result, indent=2), flush=True)
+        if gui:
+            _keep_running(connection)
         return result
     finally:
-        connection.close()
+        try:
+            connection.close()
+        except (traci.exceptions.FatalTraCIError, OSError):
+            pass  # The SUMO window was already closed.
+
+
+def _keep_running(connection: traci.connection.Connection) -> None:
+    """Keep the GUI simulation alive after the ambulance arrives.
+
+    Closing TraCI ends the simulation (sumo-gui then only offers to close), so
+    keep stepping until the config's end time. Play/pause/step and the delay
+    slider in sumo-gui keep working, and closing the window ends the loop.
+    """
+
+    print(
+        "SUMO stays open for the demo: use play/pause/step in the toolbar. "
+        "Close the SUMO window to finish.",
+        flush=True,
+    )
+    end_time = connection.simulation.getEndTime()
+    try:
+        while end_time < 0 or connection.simulation.getTime() < end_time:
+            connection.simulationStep()
+    except traci.exceptions.FatalTraCIError:
+        pass  # Window closed by the presenter.
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gui", action="store_true", help="Run in the interactive SUMO GUI")
     parser.add_argument("--delay-ms", type=int, default=50, help="GUI delay per simulation step")
-    parser.add_argument("--end", type=float, default=900, help="Maximum simulated seconds")
+    parser.add_argument(
+        "--end", type=float, default=900, help="Maximum simulated seconds to wait for the ambulance"
+    )
     args = parser.parse_args()
     run(gui=args.gui, delay_ms=args.delay_ms, end_s=args.end)
 
