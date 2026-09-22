@@ -43,7 +43,7 @@ class RouteGraph:
 
         cost_fn = edge_cost or (lambda edge, _: edge.base_travel_time_s)
         best: dict[str, float] = {start: 0.0}
-        paths: dict[str, tuple[str, ...]] = {start: ()}
+        previous: dict[str, tuple[str, str]] = {}
         queue: list[tuple[float, str]] = [(0.0, start)]
 
         while queue:
@@ -51,7 +51,14 @@ class RouteGraph:
             if elapsed > best.get(node, inf):
                 continue
             if node == goal:
-                return PathResult(paths[node], elapsed)
+                edge_ids: list[str] = []
+                current = node
+                while current != start:
+                    parent, edge_id = previous[current]
+                    edge_ids.append(edge_id)
+                    current = parent
+                edge_ids.reverse()
+                return PathResult(tuple(edge_ids), elapsed)
             for edge in self._adjacency.get(node, []):
                 travel_time = cost_fn(edge, departure_time_s + elapsed)
                 if travel_time <= 0:
@@ -59,7 +66,7 @@ class RouteGraph:
                 candidate = elapsed + travel_time
                 if candidate < best.get(edge.target, inf):
                     best[edge.target] = candidate
-                    paths[edge.target] = (*paths[node], edge.edge_id)
+                    previous[edge.target] = (node, edge.edge_id)
                     heappush(queue, (candidate, edge.target))
 
         raise ValueError(f"no route from {start!r} to {goal!r}")

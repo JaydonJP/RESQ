@@ -33,8 +33,9 @@ def main() -> None:
     osm_get = sumo_home / "tools" / "osmGet.py"
     random_trips = sumo_home / "tools" / "randomTrips.py"
     netconvert = shutil.which("netconvert")
-    if not osm_get.exists() or not random_trips.exists() or not netconvert:
-        raise SystemExit("SUMO tools or netconvert are missing from the installation/PATH")
+    polyconvert = shutil.which("polyconvert")
+    if not osm_get.exists() or not random_trips.exists() or not netconvert or not polyconvert:
+        raise SystemExit("SUMO tools, netconvert, or polyconvert are missing from the installation/PATH")
 
     GENERATED.mkdir(parents=True, exist_ok=True)
     _run(
@@ -45,7 +46,7 @@ def main() -> None:
             args.bbox,
             "--prefix",
             "thousand_lights",
-            "--directory",
+            "-d",
             str(GENERATED),
         ]
     )
@@ -93,6 +94,28 @@ def main() -> None:
             "passenger",
             "--trip-attributes",
             'departLane="best" departSpeed="max"',
+        ]
+    )
+    _run(
+        [
+            polyconvert,
+            "--net-file",
+            str(network),
+            "--osm-files",
+            ",".join(str(path) for path in osm_files),
+            "--type-file",
+            str(HERE / "landscape.typ.xml"),
+            "--osm.keep-full-type",
+            "--output-file",
+            str(GENERATED / "landscape.poly.xml"),
+        ]
+    )
+    _run(
+        [
+            sys.executable,
+            str(HERE / "build_ambulance_route.py"),
+            "--net",
+            str(network),
         ]
     )
     print(f"Network ready: {network}")
