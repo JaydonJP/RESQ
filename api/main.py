@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from adapters import CarlaSensorRig, SumoTraCIAdapter
+from brain import BrainSimulation
 from experiments.runner import FastScenarioRunner
 from recorder import RunStore
 from recorder.replay import build_ghost_replay
@@ -40,6 +41,7 @@ app.add_middleware(
 )
 
 simulation = DemoSimulation()
+brain_simulation = BrainSimulation()
 runner = FastScenarioRunner()
 store = RunStore()
 
@@ -143,6 +145,38 @@ async def live(websocket: WebSocket) -> None:
     try:
         while True:
             await websocket.send_text(simulation.snapshot().model_dump_json())
+            await asyncio.sleep(0.2)
+    except WebSocketDisconnect:
+        return
+
+
+@app.get("/api/brain/snapshot", response_model=NetworkSnapshot)
+def brain_snapshot() -> NetworkSnapshot:
+    return brain_simulation.snapshot()
+
+
+@app.patch("/api/brain/controls", response_model=ControlState)
+def update_brain_controls(
+    changes: Annotated[dict[str, bool | int], Body(examples=[{"congestion_scenario": True}])],
+) -> ControlState:
+    try:
+        return brain_simulation.update_controls(**changes)
+    except (ValueError, TypeError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/brain/reset", response_model=ControlState)
+def reset_brain() -> ControlState:
+    brain_simulation.reset()
+    return brain_simulation.controls
+
+
+@app.websocket("/ws/brain")
+async def brain_live(websocket: WebSocket) -> None:
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.send_text(brain_simulation.snapshot().model_dump_json())
             await asyncio.sleep(0.2)
     except WebSocketDisconnect:
         return
