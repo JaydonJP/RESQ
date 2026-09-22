@@ -1,0 +1,11 @@
+services:
+  resq:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      RESQ_GREEN_DB: /app/runs/resq_green.sqlite3
+      GOOGLE_ROUTES_API_KEY: ${GOOGLE_ROUTES_API_KEY:-}
+    volumes:
+      - ./runs:/app/runs
+    restart: unless-stopped

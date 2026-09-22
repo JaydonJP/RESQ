@@ -1,0 +1,10 @@
+.git
+.venv
+.pytest_cache
+.pytest-tmp
+web/node_modules
+web/dist
+runs
+sim/chennai/generated
+*.pdf
+*.html

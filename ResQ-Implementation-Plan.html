@@ -1,0 +1,691 @@
+<title>ResQ Implementation Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@500;700;800&family=Overpass+Mono:wght@400;600&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --sunken:#E8EEF0; --ink:#13202A; --ink-2:#384955; --muted:#5F707B; --rule:#D2DBE0;
+  --accent:#C4213A; --accent-soft:#F8E1E5; --on-accent:#FFFFFF;
+  --go:#17774F; --go-soft:#DCF0E6; --warn:#9A6500; --warn-soft:#FAEDCF; --info:#265B8A; --info-soft:#E0EBF5;
+  --bar:#2F4E63; --bar-ink:#FFFFFF;
+  --display:"Overpass","Arial Narrow",Arial,sans-serif;
+  --body:"Public Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"Overpass Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E151A; --surface:#141E25; --sunken:#1A2730; --ink:#E3EBEF; --ink-2:#BACAD3; --muted:#8C9DA8; --rule:#27363F;
+    --accent:#FF5D72; --accent-soft:#3B1720; --on-accent:#1B0509;
+    --go:#4FCB92; --go-soft:#11302A; --warn:#E9B64D; --warn-soft:#382B0F; --info:#7DB1E2; --info-soft:#152A3B;
+    --bar:#5C84A0; --bar-ink:#0B1318;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E151A; --surface:#141E25; --sunken:#1A2730; --ink:#E3EBEF; --ink-2:#BACAD3; --muted:#8C9DA8; --rule:#27363F;
+  --accent:#FF5D72; --accent-soft:#3B1720; --on-accent:#1B0509;
+  --go:#4FCB92; --go-soft:#11302A; --warn:#E9B64D; --warn-soft:#382B0F; --info:#7DB1E2; --info-soft:#152A3B;
+  --bar:#5C84A0; --bar-ink:#0B1318;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;padding-inline:20px;padding-block:0 64px}
+a{color:var(--info)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:1.85rem;font-weight:800;letter-spacing:-.01em}
+h3{font-size:1.2rem;font-weight:700;margin-top:28px}
+h4{font-size:1rem;font-weight:700}
+p{margin:0;max-width:70ch}
+ul,ol{margin:0;padding-left:1.2em;max-width:72ch}
+li+li{margin-top:4px}
+code,.mono{font-family:var(--mono);font-size:.9em}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+.livery{height:10px;margin-inline:-20px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,var(--surface) 14px 28px);border-bottom:1px solid var(--rule)}
+
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:210px minmax(0,1fr);gap:48px}
+@media (max-width:920px){.wrap{grid-template-columns:minmax(0,1fr)} nav.route{display:none}}
+
+nav.route{position:sticky;top:24px;align-self:start;margin-top:40px;font-size:.85rem}
+nav.route .eyebrow{display:block;margin-bottom:12px}
+nav.route ol{list-style:none;padding:0;margin:0;border-left:3px solid var(--rule)}
+nav.route li{margin:0}
+nav.route a{display:block;position:relative;padding:5px 0 5px 16px;color:var(--muted);text-decoration:none;line-height:1.3}
+nav.route a::before{content:"";position:absolute;left:-7.5px;top:10px;width:9px;height:9px;border-radius:50%;background:var(--bg);border:2px solid var(--rule)}
+nav.route a:hover{color:var(--ink)}
+nav.route a.on{color:var(--ink);font-weight:600}
+nav.route a.on::before{background:var(--accent);border-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:64px;padding-top:40px}
+section{display:flex;flex-direction:column;gap:16px;scroll-margin-top:24px}
+section > .eyebrow{margin-bottom:-8px}
+
+.hero{display:flex;flex-direction:column;gap:18px}
+.hero h1{font-size:clamp(2.6rem,6vw,4.2rem);font-weight:800;letter-spacing:-.02em}
+.hero h1 span{color:var(--accent)}
+.hero .lede{font-size:1.2rem;color:var(--ink-2);max-width:60ch}
+.decisions{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));background:var(--surface);border:1px solid var(--rule);border-radius:6px;margin:8px 0 0}
+.decisions div{padding:14px 18px;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule)}
+.decisions dt{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.decisions dd{margin:4px 0 0;font-size:.95rem}
+.origin{border-left:3px solid var(--go);padding:4px 0 4px 16px;color:var(--ink-2);font-size:.95rem}
+.changed{background:var(--info-soft);border-radius:6px;padding:12px 16px;font-size:.92rem;color:var(--ink)}
+.changed b{color:var(--info)}
+
+.callout{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:20px 22px;display:flex;flex-direction:column;gap:12px}
+.callout.key{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
+.steps{counter-reset:s;list-style:none;padding:0;display:flex;flex-direction:column;gap:10px}
+.steps li{counter-increment:s;display:grid;grid-template-columns:32px 1fr;gap:10px;margin:0}
+.steps li::before{content:counter(s);font-family:var(--mono);font-weight:600;font-size:.8rem;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--rule);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:640px}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--rule)}
+th{font-family:var(--mono);font-weight:600;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--sunken)}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tfoot td{font-weight:700;background:var(--sunken)}
+
+.arch{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:10px;align-items:stretch;overflow-x:auto;padding:18px;background:var(--surface);border:1px solid var(--rule);border-radius:6px}
+.stage{display:flex;flex-direction:column;gap:8px;min-width:150px}
+.stage > .eyebrow{font-size:.66rem}
+.node{border:1px solid var(--rule);border-radius:4px;padding:9px 11px;background:var(--bg);font-size:.82rem;line-height:1.35}
+.node b{display:block;font-family:var(--display);font-size:.9rem}
+.node small{color:var(--muted)}
+.node.macro{border-left:4px solid var(--info)}
+.node.micro{border-left:4px solid var(--warn)}
+.node.core{border-left:4px solid var(--accent)}
+.node.out{border-left:4px solid var(--go)}
+.arrow{align-self:center;color:var(--muted);font-family:var(--mono);font-size:1.2rem}
+@media (max-width:760px){.arch{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}}
+
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.panel h4{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;font-weight:600}
+.tag.macro{background:var(--info-soft);color:var(--info)}
+.tag.micro{background:var(--warn-soft);color:var(--warn)}
+.tag.go{background:var(--go-soft);color:var(--go)}
+.tag.red{background:var(--accent-soft);color:var(--accent)}
+.panel ul{font-size:.92rem}
+.panel p{font-size:.92rem}
+
+.formula{font-family:var(--mono);font-size:.95rem;background:var(--sunken);border-radius:4px;padding:14px 16px;overflow-x:auto;white-space:nowrap;line-height:1.9}
+.formula sub{font-size:.72em}
+.where{font-size:.9rem;color:var(--ink-2)}
+
+.fsm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:var(--mono);font-size:.74rem}
+.fsm span.s{padding:6px 10px;border-radius:3px;border:1px solid var(--rule);background:var(--surface);letter-spacing:.04em}
+.fsm span.s.hot{border-color:var(--accent);color:var(--accent)}
+.fsm span.s.ok{border-color:var(--go);color:var(--go)}
+.fsm i{font-style:normal;color:var(--muted)}
+
+.gantt-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:16px}
+.gantt{display:grid;grid-template-columns:150px repeat(36,minmax(22px,1fr));row-gap:6px;min-width:980px;font-size:.72rem}
+.gantt .lab{grid-column:1;font-family:var(--display);font-weight:700;font-size:.82rem;align-self:center;padding-right:10px;line-height:1.2}
+.gantt .sem{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--rule);padding-bottom:4px}
+.gantt .wk{font-family:var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;border-left:1px solid var(--rule);padding-left:3px}
+.gantt .bar{background:var(--bar);color:var(--bar-ink);border-radius:3px;padding:5px 6px;line-height:1.15;min-height:38px;display:flex;align-items:center;margin-right:2px;font-weight:600}
+.gantt .bar.all{background:var(--accent);color:var(--on-accent)}
+.gantt .ms{align-self:center;justify-self:center;width:24px;height:24px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);border:1.5px solid var(--accent);border-radius:4px;font-family:var(--mono);font-weight:600;font-size:.64rem}
+
+.phases{display:flex;flex-direction:column;gap:14px}
+.phase{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:18px 20px;display:grid;grid-template-columns:130px minmax(0,1fr);gap:18px}
+@media (max-width:640px){.phase{grid-template-columns:1fr;gap:8px}}
+.phase .when{font-family:var(--mono);font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.phase .when b{font-family:var(--display);font-size:1.05rem;color:var(--ink)}
+.phase .body{display:flex;flex-direction:column;gap:10px}
+.phase dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:.9rem}
+.phase dt{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;color:var(--muted);padding-top:3px;white-space:nowrap}
+.phase dd{margin:0}
+.done{font-size:.88rem;background:var(--go-soft);color:var(--ink);border-radius:4px;padding:8px 12px}
+.done b{color:var(--go)}
+
+pre{background:var(--sunken);border-radius:6px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:.82rem;line-height:1.55;margin:0}
+
+.open{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--rule);border-radius:6px}
+.open div{padding:14px 18px;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px}
+.open div:last-child{border-bottom:0}
+@media (max-width:640px){.open div{grid-template-columns:1fr;gap:4px}}
+.open b{font-family:var(--display)}
+.open span{font-size:.92rem;color:var(--ink-2)}
+.note{font-size:.85rem;color:var(--muted)}
+footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--rule);padding-top:16px}
+</style>
+
+<div class="livery" aria-hidden="true"></div>
+<div class="wrap">
+<nav class="route" aria-label="Contents">
+  <span class="eyebrow">Route</span>
+  <ol>
+    <li><a href="#decisions">What we're building</a></li>
+    <li><a href="#problems">Problems &amp; fixes</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#area">Chennai map</a></li>
+    <li><a href="#inputs">The two inputs</a></li>
+    <li><a href="#modes">Simulation modes</a></li>
+    <li><a href="#ml">ML models &amp; fusion</a></li>
+    <li><a href="#routing">Routing engine</a></li>
+    <li><a href="#corridor">Green corridor</a></li>
+    <li><a href="#web">Demo web app</a></li>
+    <li><a href="#evaluation">Evaluation</a></li>
+    <li><a href="#team">Team roles</a></li>
+    <li><a href="#timeline">Timeline</a></li>
+    <li><a href="#stack">Tech stack</a></li>
+    <li><a href="#budget">Budget</a></li>
+    <li><a href="#risks">Risks &amp; cut lines</a></li>
+    <li><a href="#open">Remaining choices</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero" id="decisions">
+  <span class="eyebrow">IDP implementation plan · 2 semesters · 3 people · software only</span>
+  <h1>RESQ<span>-</span>Green</h1>
+  <p class="lede">An emergency-routing system that combines city-wide traffic forecasts with what the ambulance's camera and LiDAR can see ahead. It picks the fastest route to hospital, re-plans when something changes, and turns signals green just in time. It is shown entirely in simulation, through a web app.</p>
+  <dl class="decisions">
+    <div><dt>Core</dt><dd>Best-route selection from predicted traffic, plus a just-in-time green corridor</dd></div>
+    <div><dt>Map</dt><dd>Thousand Lights / Apollo Hospitals, Greams Road, Chennai</dd></div>
+    <div><dt>Input 1: macro traffic</dt><dd>Simulated crowd-GPS "phone" probes, with Google Routes API in live-map mode</dd></div>
+    <div><dt>Input 2: onboard sensing</dt><dd>Camera and LiDAR, rendered by CARLA and co-simulated with SUMO, processed by YOLO and tracking</dd></div>
+    <div><dt>ML</dt><dd>Graph model forecasting traffic 5–30 min ahead, and a detector that predicts the next 1–3 s on camera</dd></div>
+    <div><dt>Demo</dt><dd>Web app with a live simulation view, pre-recorded replays and an accuracy and results dashboard</dd></div>
+    <div><dt>Team &amp; compute</dt><dd>3 people, about 36 weeks. Your 8 GB GPU for CARLA and training</dd></div>
+    <div><dt>Out of scope</dt><dd>Physical hardware, public-road deployment, V2X standards, authentication, native mobile app</dd></div>
+  </dl>
+  <p class="changed"><b>Changed in this version:</b> the physical model is removed and the demo is fully software. CARLA now supplies realistic camera and LiDAR data, because your 8 GB GPU can run it. Roles are rebalanced for three people, the map is fixed to Thousand Lights, and the budget drops to almost nothing.</p>
+  <p class="origin"><b>What happened to your original idea.</b> Estimating traffic from phone GPS is still here. Inside SUMO we build our own crowd-GPS source, so we can measure how accuracy changes with app adoption, and Google plays that role in live-map mode. "Predict future frames" becomes two forecast horizons: minutes ahead for roads, seconds ahead for vehicles on camera. "Best path" becomes routing on the traffic predicted for the moment the ambulance reaches each road.</p>
+</header>
+
+<section>
+  <span class="eyebrow">The demo that proves the idea</span>
+  <h2>The hidden accident</h2>
+  <p>Every design choice below exists to make this scenario work. It's the centrepiece of the final demo and the results chapter.</p>
+  <div class="callout key">
+    <ol class="steps">
+      <li><span>An ambulance picks up a patient in Nungambakkam, heading for Apollo Hospitals on Greams Road. The macro forecast rates <b>Route A</b> fastest.</span></li>
+      <li><span>An accident blocked two lanes on Route A 90 seconds ago. Crowd traffic data lags by 2–5 minutes, so the macro layer still reports the road as clear.</span></li>
+      <li><span>About 120 m before the blockage, the camera (in CARLA) sees stopped vehicles across both lanes and the LiDAR confirms a queue. The fusion engine raises that road's travel time with high confidence.</span></li>
+      <li><span>The routing engine switches to <b>Route B</b> in under a second and cancels the signal reservations on Route A.</span></li>
+      <li><span>Along Route B, the corridor controller clears the queues at the next three intersections just before the ambulance arrives. Afterwards, cross traffic is served first until the side queues recover.</span></li>
+      <li><span>On the web app, three "ghost" ambulances replay the same seed on one map: no system, Google-style routing only, and ResQ. The gap at the finish is the headline result.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section id="problems">
+  <span class="eyebrow">Real-world issues</span>
+  <h2>Current problems and how we fix them</h2>
+  <p>Some of these come from your research, some are weaknesses in the original phone-GPS idea that examiners will ask about, and some are specific to Chennai. Each fix maps to a module in this plan.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Problem</th><th>Why it matters</th><th>Our fix</th></tr></thead>
+    <tbody>
+      <tr><td>Phones are not vehicles</td><td>Not everyone runs the app. One car can carry three phones and one MTC bus forty. Pedestrians' phones move at walking pace. Counting phones gives wrong vehicle counts.</td><td>Treat phones as <em>probes</em>. Estimate road speed, which stays robust, rather than raw counts. Merge devices moving together into one vehicle, drop walking speeds, and scale counts by the estimated adoption rate. Test at 5%, 10% and 30% adoption.</td></tr>
+      <tr><td>Google already does crowd traffic</td><td>An app that only routes on crowd GPS is Google Maps with a new logo.</td><td>Our novelty is what Google can't do: see the road ahead from the ambulance, forecast traffic for the time the ambulance will actually reach each road, and coordinate signals along the route.</td></tr>
+      <tr><td>Crowd data is minutes old</td><td>Aggregated traffic describes the last few minutes, so a fresh accident is invisible to it.</td><td>Onboard perception covers the next 100–150 m with data that is seconds old. The fusion engine trusts it more the closer the road is.</td></tr>
+      <tr><td>Onboard sensors are short-sighted</td><td>A camera is useful to about 100–150 m and LiDAR to 50–100 m. Neither can see 2 km ahead.</td><td>Two horizons: distant roads use the forecast, nearby roads use perception.</td></tr>
+      <tr><td>Sonar adds nothing here</td><td>Ultrasonic sensors reach about 4 m, which is useful for parking, not traffic. CARLA doesn't simulate them either.</td><td>Dropped. Camera and LiDAR carry the onboard input, with CARLA's radar available if you want a third sensor.</td></tr>
+      <tr><td>Ambulances don't move like traffic</td><td>Other vehicles give way, so in moderate traffic an ambulance moves faster than the average. In gridlock or narrow streets it doesn't.</td><td>Use an ambulance speed factor based on congestion and road width, calibrated with SUMO's <code>bluelight</code> device, which makes simulated cars form a rescue lane.</td></tr>
+      <tr><td>Mixed Indian traffic</td><td>Two-wheelers, autos and lane-less movement. Detectors trained on US/EU data miss autorickshaws.</td><td>Fine-tune on the India Driving Dataset (IDD) and test on your own Chennai clips. Use SUMO's sublane model for two-wheelers and passenger-car-unit (PCU) weights when estimating queues.</td></tr>
+      <tr><td>Chennai map data is incomplete</td><td>OpenStreetMap often misses traffic signals, turn restrictions and temporary one-ways, such as those around Metro works.</td><td>Import with signal guessing turned on, then manually check every junction in the box against satellite and street imagery and local knowledge. Keep the fixes in version control.</td></tr>
+      <tr><td>No public Chennai traffic data</td><td>There's no open loop-detector feed for Chennai streets, and the benchmark datasets are Californian freeways.</td><td>Benchmark the model on PEMS-BAY/METR-LA against published results. Calibrate SUMO demand against Google travel-time spot checks on about 10 routes, train the demo model on simulated Chennai history, and report both.</td></tr>
+      <tr><td>Fixed-distance signal trigger</td><td>A "switch at 300 m" rule is too early with no queue and too late with a long one.</td><td>A just-in-time trigger based on how long the queue ahead takes to clear.</td></tr>
+      <tr><td>Route flip-flopping</td><td>Constant rerouting confuses the driver and wastes signal reservations.</td><td>Hysteresis: switch only if the new route saves at least 10 s and 5%. Reserve only the next 2–3 intersections and cancel old reservations immediately.</td></tr>
+      <tr><td>Traffic after the ambulance passes</td><td>Side streets held on red build long queues.</td><td>A "queue-debt" recovery controller gives extra green to the approaches that waited longest.</td></tr>
+      <tr><td>Unsafe signal switching</td><td>Jumping to green skips amber, all-red and pedestrian clearance.</td><td>A deterministic safety state machine owns every transition. ML only advises.</td></tr>
+      <tr><td>Google API cost and terms</td><td>Traffic-aware calls are billed beyond a free monthly quota, and the terms restrict storing content or building datasets from it.</td><td>Call Google only at run time, never for training data. Set a billing cap. Inside SUMO it isn't needed at all.</td></tr>
+      <tr><td>Privacy</td><td>Any real road footage you record shows people and number plates (DPDP Act 2023).</td><td>Blur faces and plates before labelling, and keep only the labelled frames.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="architecture">
+  <span class="eyebrow">System</span>
+  <h2>Architecture</h2>
+  <p>Each input sits behind an adapter, so the same fusion, routing and corridor code runs against fast SUMO, CARLA co-simulation or the live Google map without changes. That's the main engineering idea to explain in the viva.</p>
+  <div class="arch" role="img" aria-label="Architecture: macro and onboard inputs feed processing, then fusion, routing and corridor control, then signals and the web app">
+    <div class="stage"><span class="eyebrow">Inputs</span>
+      <div class="node macro"><b>Crowd-GPS probes</b><small>SUMO: p% of vehicles report noisy GPS at 1 Hz</small></div>
+      <div class="node macro"><b>Google Routes API</b><small>Live-map mode: route durations and traffic speed along the route</small></div>
+      <div class="node micro"><b>Ambulance sensors</b><small>CARLA camera + LiDAR, or the fast virtual sensor</small></div>
+    </div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="stage"><span class="eyebrow">Understand</span>
+      <div class="node macro"><b>Aggregator</b><small>Map-matching and per-road speed and density</small></div>
+      <div class="node macro"><b>Traffic forecaster</b><small>Graph model predicting 5 / 15 / 30 min ahead</small></div>
+      <div class="node micro"><b>Perception</b><small>YOLO + ByteTrack, LiDAR clustering, queue and blockage detection, 1–3 s prediction</small></div>
+    </div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="stage"><span class="eyebrow">Decide</span>
+      <div class="node core"><b>Fusion engine</b><small>Travel time and confidence for each road</small></div>
+      <div class="node core"><b>Routing engine</b><small>Time-dependent A*, rerouting with hysteresis</small></div>
+      <div class="node core"><b>Corridor controller</b><small>Just-in-time trigger and safety state machine</small></div>
+    </div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="stage"><span class="eyebrow">Act &amp; show</span>
+      <div class="node out"><b>Simulated signals</b><small>Set through TraCI in SUMO (mirrored in CARLA)</small></div>
+      <div class="node out"><b>Recorder</b><small>Every run saved for replay and results</small></div>
+      <div class="node out"><b>Web app</b><small>Live · Replay · Cab · Results</small></div>
+    </div>
+  </div>
+  <p class="note">Services talk over WebSockets (backend ↔ browser). One internal schema (<code>VehicleState</code>, <code>RoadObservation</code>, <code>PriorityRequest</code>, <code>SignalState</code>) is fixed in week 3 so the three workstreams can build in parallel.</p>
+</section>
+
+<section id="area">
+  <span class="eyebrow">Study area</span>
+  <h2>The Chennai map</h2>
+  <p>A box of about 2.5 × 2 km centred on <b>Apollo Hospitals, Greams Road</b>, covering Anna Salai, Greams Road, Nungambakkam High Road, Haddows Road, Cathedral Road and the Gemini junction. Parallel arterials give the router real alternatives, and peak-hour congestion gives the corridor controller something to clear.</p>
+  <div class="pair">
+    <div class="panel"><h4>Week 1–2 tasks</h4><ul>
+      <li>Draw the exact box on openstreetmap.org and export it, or use SUMO's <code>osmWebWizard.py</code></li>
+      <li>Check the box contains 15–25 signalised junctions and at least two distinct routes into the hospital</li>
+      <li>Note the one-ways and turn bans you know from local driving</li>
+      <li>Optionally add a second hospital inside the box, which enables the "fastest hospital" feature</li>
+    </ul></div>
+    <div class="panel"><h4>Map clean-up (weeks 4–9)</h4><ul>
+      <li><code>netconvert</code> with signal guessing (<code>--tls.guess</code>), then verify each junction by hand</li>
+      <li>Model the Gemini flyover as a grade-separated link so through traffic doesn't hit the signal</li>
+      <li>Set signal timings to realistic Chennai cycles (often 90–150 s at major junctions); note the source for each value</li>
+      <li>Mix in two-wheelers, autos, cars, buses and trucks for a Chennai vehicle mix</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="inputs">
+  <span class="eyebrow">Data</span>
+  <h2>The two inputs</h2>
+  <div class="pair">
+    <div class="panel">
+      <h4><span class="tag macro">Macro</span> Traffic data — the whole city, minutes old</h4>
+      <ul>
+        <li><b>Simulated crowd-GPS.</b> A chosen share of vehicles act as phones and emit latitude, longitude and speed with realistic noise (5–15 m, more in dense streets), dropouts and upload lag. The aggregator map-matches them to roads.</li>
+        <li><b>Google Routes API (live-map mode).</b> Compare <code>duration</code> with <code>staticDuration</code> to get a congestion ratio, and request traffic-on-polyline speed bands along candidate routes. Poll only routes of interest.</li>
+        <li><b>Training history.</b> PEMS-BAY and METR-LA as benchmarks, plus 30+ simulated days of the Thousand Lights box with varied demand and incidents.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4><span class="tag micro">Onboard</span> Ambulance sensors — the next 150 m, seconds old</h4>
+      <ul>
+        <li><b>Camera</b> (CARLA RGB, front-facing): vehicle classes, counts, lanes occupied, stopped vehicles, how far back the queue reaches.</li>
+        <li><b>LiDAR</b> (CARLA ray-cast, e.g. 32 channels, 70 m): exact distances and queue tail, and a cross-check on the camera.</li>
+        <li><b>Virtual sensor</b> (fast mode): reads vehicles in a 150 m cone ahead through TraCI and adds misses and noise. Its miss rate by distance is <em>calibrated from the CARLA and YOLO results</em>, so bulk experiments stay honest.</li>
+        <li><b>Real-world check:</b> record 15–20 min of Chennai road video on a phone, blur it, and label about 300 frames as a local test set.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="modes">
+  <span class="eyebrow">Where it runs</span>
+  <h2>Three simulation modes</h2>
+  <p>All three run the same core code. Each has a different job.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Mode</th><th>What runs</th><th>Onboard input</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td>Fast</td><td>SUMO (libsumo) on the Chennai box, faster than real time</td><td>Virtual sensor</td><td>All experiments: 6 baselines × scenarios × 20+ seeds, plus the ML training history</td></tr>
+      <tr><td>Sensor-realistic</td><td>CARLA 0.9.x + SUMO co-simulation, synchronous, 20 Hz</td><td>Rendered camera and LiDAR → YOLO</td><td>The hidden-accident showcase and perception results, recorded for replay</td></tr>
+      <tr><td>Live map</td><td>Real Chennai road graph (OSMnx) + Google Routes API</td><td>None</td><td>Showing the router on today's real traffic. No signal control</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note"><b>CARLA on your 8 GB GPU:</b> use the UE4-based 0.9.x releases; the UE5 0.10 line needs far more VRAM. Run in synchronous mode at Low quality, with one 1280×720 camera and YOLO on the same GPU. It won't be smooth in real time, which is why showcase runs are <em>recorded</em> and replayed on the web app. For the map, CARLA can generate a Chennai road world from the same OSM export (roads only, no buildings). If that import gets messy, use a built-in multi-lane town (Town05 or Town10) for the showcase and keep Chennai for fast mode.</p>
+</section>
+
+<section id="ml">
+  <span class="eyebrow">Machine learning</span>
+  <h2>ML models and fusion</h2>
+  <h3>1 · Traffic forecaster (minutes ahead)</h3>
+  <p>Given the last 60 minutes of speed on every road (twelve 5-minute steps), predict speed 5, 15 and 30 minutes ahead. Ambulance trips last 5–20 minutes, so 30 minutes is as far ahead as we need.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Rung</th><th>Model</th><th>Why include it</th></tr></thead>
+    <tbody>
+      <tr><td>Baseline</td><td>Historical average by time of day</td><td>The number every other model must beat</td></tr>
+      <tr><td>Classical</td><td>LightGBM with lag and time features</td><td>Strong, fast and easy to explain</td></tr>
+      <tr><td>Graph (final)</td><td>Graph WaveNet or STGCN on the road graph</td><td>Congestion spreads along connected roads, and graph models capture that</td></tr>
+      <tr><td>Optional</td><td>GRU / LSTM per road</td><td>Include only if time allows, since three people is tight</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Metrics: MAE, RMSE and MAPE per horizon. Target: beat the historical average by ≥15% at 15 min. Reference code is available in LibCity and PyTorch Geometric Temporal; reproduce first, then customise. Training fits comfortably on your 8 GB GPU.</p>
+
+  <h3>2 · Perception (seconds ahead)</h3>
+  <ul>
+    <li><b>Detector:</b> Ultralytics YOLO (small or medium, YOLO11 or newer) fine-tuned on IDD classes: car, bus, truck, motorcycle, autorickshaw, bicycle, person. Also check it on CARLA frames; if the gap between CARLA and real images hurts, add a few hundred labelled CARLA frames.</li>
+    <li><b>LiDAR:</b> filter the ground plane, cluster points (DBSCAN), and match clusters to camera boxes for distance and queue tail.</li>
+    <li><b>Tracker:</b> ByteTrack gives stable IDs, so we can tell when a vehicle has been <em>stopped</em> for more than 3 s. Several stopped vehicles in the same lanes mean a queue or blockage.</li>
+    <li><b>Future frames:</b> a Kalman constant-velocity model (optionally a small LSTM) predicts each tracked vehicle 1–3 s ahead, e.g. "gap opening in right lane" for the cab view.</li>
+    <li><b>Targets:</b> mAP50 ≥ 0.6 on IDD vehicle classes, reported separately on CARLA frames and on your Chennai test set. Blockage-detection precision and recall on CARLA incident runs. Report inference time in ms per frame.</li>
+  </ul>
+
+  <h3>3 · Fusion (the core contribution)</h3>
+  <p>For each road <i>e</i>, combine the macro estimate <i>t<sub>m</sub></i> (forecast for the time the ambulance arrives) with the perception estimate <i>t<sub>p</sub></i>, weighting each by how much we trust it:</p>
+  <div class="formula">t̂<sub>e</sub> = ( t<sub>m</sub>/σ<sub>m</sub>² + t<sub>p</sub>/σ<sub>p</sub>² ) ÷ ( 1/σ<sub>m</sub>² + 1/σ<sub>p</sub>² )</div>
+  <p class="where"><i>σ<sub>m</sub></i> comes from the forecaster's validation error at that horizon, increased as the data gets older. <i>σ<sub>p</sub></i> grows with distance from the ambulance and falls with detection confidence. Roads outside sensor range use the macro estimate alone. A blockage detected with confidence above 0.8 overrides the formula and marks the road near-closed. The combined confidence is shown on the dashboard.</p>
+</section>
+
+<section id="routing">
+  <span class="eyebrow">Best path</span>
+  <h2>Routing engine</h2>
+  <ul>
+    <li><b>Graph:</b> the SUMO network, read with <code>sumolib</code>, in fast and CARLA modes, so road IDs match. In live-map mode, OpenStreetMap loaded through OSMnx.</li>
+    <li><b>Time-dependent A*:</b> each road's cost is looked up at the <em>predicted time the ambulance will enter it</em>, choosing the matching forecast horizon. This is what "predicting future traffic" means for routing.</li>
+    <li><b>Cost terms:</b> fused travel time × ambulance speed factor, plus turn penalties and expected signal delay. Signal delay is lower where the corridor controller will pre-clear, which ties routing and signals together.</li>
+    <li><b>Replanning:</b> every 2 s and on every new perception or macro update, with hysteresis (at least 10 s and 5% saved).</li>
+    <li><b>Destination choice (optional):</b> if a second hospital is inside the box, pick whichever has the fastest ETA.</li>
+  </ul>
+</section>
+
+<section id="corridor">
+  <span class="eyebrow">Signals</span>
+  <h2>Green corridor</h2>
+  <p>The router sends a short-lived reservation (ETA and approach direction) to the next 2–3 intersections on the route. Each intersection decides <em>when</em> to act, and not only <em>whether</em> to.</p>
+  <div class="formula">T<sub>clear,i</sub> = T<sub>startup</sub> + Q<sub>i</sub>/s<sub>i</sub> + T<sub>transition</sub> + T<sub>margin</sub> &nbsp;&nbsp;&nbsp; act when &nbsp;T<sub>EV,i</sub> ≤ T<sub>clear,i</sub></div>
+  <p class="where"><i>Q<sub>i</sub></i> is the queue ahead in PCU, from the fusion engine, so the camera improves this too. <i>s<sub>i</sub></i> is the discharge rate, starting at about 0.5 vehicles/s/lane and calibrated in SUMO. <i>T<sub>startup</sub></i> is about 2 s. <i>T<sub>transition</sub></i> is amber plus all-red (for example 3 s + 2 s). <i>T<sub>margin</sub></i> is 2σ of the ETA estimate.</p>
+  <div class="pair">
+    <div class="panel"><h4><span class="tag go">Extend</span></h4><p>The ambulance's direction is already green, so hold it within the maximum-green limit.</p></div>
+    <div class="panel"><h4><span class="tag red">Early green</span></h4><p>A conflicting phase is green. End it through amber and all-red, then serve the ambulance's approach.</p></div>
+    <div class="panel"><h4><span class="tag micro">Pre-clear</span></h4><p>A long queue sits ahead, so start the ambulance's green early enough to empty it before arrival.</p></div>
+    <div class="panel"><h4><span class="tag macro">No action</span></h4><p>The ambulance will arrive on a natural green anyway. Knowing when <em>not</em> to preempt is part of the design.</p></div>
+  </div>
+  <h3>Safety state machine (per intersection)</h3>
+  <div class="fsm" aria-label="State sequence">
+    <span class="s">NORMAL</span><i>→</i><span class="s">REQUEST VALID</span><i>→</i><span class="s hot">PRE-CLEAR</span><i>→</i><span class="s hot">SAFE TRANSITION</span><i>→</i><span class="s ok">EV SERVICE</span><i>→</i><span class="s ok">EV PASSED</span><i>→</i><span class="s">RECOVERY</span><i>→</i><span class="s">NORMAL</span>
+  </div>
+  <p class="where">Rules that hold in every state: minimum green, amber and all-red are never shortened. A reservation expires if it isn't renewed within 3 s. Preemption has a maximum duration (for example 60 s), after which a watchdog forces recovery. Two conflicting greens are never allowed. An automated test asserts zero violations of this last rule in every run.</p>
+</section>
+
+<section id="web">
+  <span class="eyebrow">The demo</span>
+  <h2>Demo web app</h2>
+  <p>One React app with four pages. Examiners see everything in a browser. Replays and results are pre-computed, so the demo works even if the simulation or GPU misbehaves on the day, and they can be hosted as a static site behind a shareable link.</p>
+  <div class="pair">
+    <div class="panel">
+      <h4>Live <span class="tag red">real time</span></h4>
+      <ul>
+        <li>Streams a running fast-mode SUMO session over WebSockets (5–10 Hz)</li>
+        <li>Map of the Thousand Lights box, with roads shaded by fused speed and confidence</li>
+        <li>Current route and alternatives with ETAs; status chip for each intersection</li>
+        <li>Decision log with reasons: <span class="mono">"Rerouted: blockage, 2 lanes, conf 0.91 — saves 48 s"</span></li>
+        <li>Demo controls: inject accident, cut macro feed, change adoption %, blind the camera</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>Replay <span class="tag macro">pre-run</span></h4>
+      <ul>
+        <li>Recorded scenarios with play, pause and scrub</li>
+        <li><b>Ghost race:</b> B0, B1 and ResQ ambulances on the same map with the same seed</li>
+        <li>CARLA camera video synced to the timeline, with detection boxes drawn in</li>
+        <li>Signal state timeline for each corridor intersection</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>Cab <span class="tag go">tablet-sized</span></h4>
+      <ul>
+        <li>What the ambulance driver would see: next turn, ETA, next signal status (<span class="mono">PRE-CLEAR IN 4 s</span>)</li>
+        <li>Camera feed with boxes and a "gap opening" hint</li>
+        <li>Data-confidence badge (macro age, perception status)</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>Results <span class="tag micro">accuracy</span></h4>
+      <ul>
+        <li>Forecast MAE, RMSE and MAPE by horizon against the baselines</li>
+        <li>Perception mAP by class on IDD, CARLA and Chennai clips</li>
+        <li>Ambulance travel-time distributions per baseline × scenario, with confidence intervals</li>
+        <li>Green-on-arrival rate, cross-traffic delay, recovery time, adoption-rate curve</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="evaluation">
+  <span class="eyebrow">Results chapter</span>
+  <h2>Evaluation</h2>
+  <h3>Research questions</h3>
+  <ul>
+    <li><b>RQ1</b> Does combining macro forecasts with onboard perception reduce ambulance travel time compared with macro data alone, especially during incidents and when data is stale?</li>
+    <li><b>RQ2</b> Does just-in-time, queue-aware preemption beat fixed-distance preemption on ambulance delay <em>and</em> on delay to cross traffic?</li>
+    <li><b>RQ3</b> How does crowd-GPS adoption (5 / 10 / 30%) affect forecast accuracy and route quality?</li>
+  </ul>
+  <h3>Baselines (each builds on the one before)</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>ID</th><th>Configuration</th></tr></thead>
+    <tbody>
+      <tr><td>B0</td><td>Shortest-distance route, normal signals (no system)</td></tr>
+      <tr><td>B1</td><td>Traffic-aware routing on macro data only ("Google-style"), normal signals</td></tr>
+      <tr><td>B2</td><td>B1 + fixed-distance preemption (300 m)</td></tr>
+      <tr><td>B3</td><td>Fused routing + fixed-distance preemption</td></tr>
+      <tr><td>B4</td><td>Fused routing + just-in-time preemption</td></tr>
+      <tr><td>B5</td><td>B4 + queue-debt recovery (full ResQ)</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Scenarios × metrics</h3>
+  <div class="pair">
+    <div class="panel"><h4>Scenarios</h4><ul>
+      <li>Off-peak / evening peak / saturated demand</li>
+      <li>Hidden accident on the predicted route</li>
+      <li>Macro feed stale or down</li>
+      <li>Camera degraded: night and rain (CARLA weather presets)</li>
+      <li>Adoption at 5 / 10 / 30%, GPS noise</li>
+      <li>Two ambulances (optional)</li>
+    </ul></div>
+    <div class="panel"><h4>Metrics (targets)</h4><ul>
+      <li>Ambulance travel time, mean and p95 (≥20% below B0 in congested runs)</li>
+      <li>Green on arrival (≥90%), stops per trip</li>
+      <li>Route regret versus an all-knowing oracle</li>
+      <li>Cross-street added delay and recovery time</li>
+      <li>Reroute reaction time (&lt;1 s from detection)</li>
+      <li>Forecast MAE by horizon, perception mAP</li>
+      <li>Conflicting-green violations: 0</li>
+    </ul></div>
+  </div>
+  <p class="note">Run each cell of the scenario matrix with at least 20 random seeds in fast mode and report the mean with a 95% confidence interval. The percentages are project targets, not guaranteed outcomes.</p>
+</section>
+
+<section id="team">
+  <span class="eyebrow">People</span>
+  <h2>Team roles (3 members)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Member</th><th>Owns</th><th>Skills to pick up</th></tr></thead>
+    <tbody>
+      <tr><td>M1 · Simulation &amp; signals</td><td>Chennai SUMO map, demand, crowd-GPS generator, virtual sensor, corridor controller, safety state machine, recovery, experiment runner, run recorder</td><td>SUMO, netconvert, TraCI, traffic-signal basics</td></tr>
+      <tr><td>M2 · Prediction &amp; routing</td><td>Datasets, forecasters, fusion engine, ambulance speed factor, routing engine, FastAPI backend, Google adapter</td><td>PyTorch, graph neural networks, LightGBM, FastAPI</td></tr>
+      <tr><td>M3 · Perception, CARLA &amp; web</td><td>YOLO fine-tuning, LiDAR clustering, tracking, 1–3 s prediction, Chennai test set, CARLA–SUMO co-simulation, all four web pages</td><td>Ultralytics, OpenCV, CARLA Python API, React, MapLibre</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">M3 has the widest spread, so M1 provides the recorder's data format and M2 provides the API; M3 only builds the pages on top. Everyone attends a weekly 1-hour integration session from week 4.</p>
+</section>
+
+<section id="timeline">
+  <span class="eyebrow">36 weeks</span>
+  <h2>Timeline</h2>
+  <p>Semester 1 is weeks 1–16 (roughly Sep–Dec 2026) and ends with a working simulation loop on the Chennai map. Semester 2 is weeks 17–36 (roughly Jan–May 2027) and adds the corridor, fusion, CARLA and results. Shift the weeks to match your academic calendar.</p>
+  <div class="gantt-wrap"><div class="gantt" id="gantt"></div></div>
+  <p class="note">Milestones: <b>M1</b> W9 design review · <b>M2</b> W16 Semester-1 demo · <b>M3</b> W23 integration freeze · <b>M4</b> W29 feature freeze · <b>M5</b> W34 report and paper draft · <b>M6</b> W36 final viva.</p>
+
+  <div class="phases">
+    <div class="phase"><div class="when"><b>Foundations</b>Weeks 1–3</div><div class="body">
+      <dl>
+        <dt>ALL</dt><dd>Finalise the spec; draw the Thousand Lights box; agree the internal message schema; set up the repo and CI; install SUMO and CARLA on the GPU machine.</dd>
+        <dt>M1</dt><dd>SUMO tutorials; first import of the Chennai box.</dd>
+        <dt>M2</dt><dd>Forecasting literature; download PEMS-BAY and METR-LA.</dd>
+        <dt>M3</dt><dd>Download IDD; web app skeleton with a map of the box; run CARLA's example scripts.</dd>
+      </dl>
+      <p class="done"><b>Done when:</b> the Chennai box runs in SUMO with default traffic, and schema v1 is agreed.</p>
+    </div></div>
+
+    <div class="phase"><div class="when"><b>Chennai twin &amp; data</b>Weeks 4–9</div><div class="body">
+      <dl>
+        <dt>M1</dt><dd>Signal verification and clean-up; Chennai vehicle mix; demand calibration against Google spot checks; crowd-GPS generator; begin generating simulated history.</dd>
+        <dt>M2</dt><dd>Historical-average and LightGBM baselines on PEMS-BAY; aggregator (map-matching to per-road speed); FastAPI skeleton.</dd>
+        <dt>M3</dt><dd>Fine-tune YOLO on IDD; record and blur Chennai clips; live SUMO vehicles on the web map.</dd>
+      </dl>
+      <p class="done"><b>Done when (M1):</b> the design review is passed, simulated Chennai history is being generated, baselines are reported, and SUMO is visible live in the browser.</p>
+    </div></div>
+
+    <div class="phase"><div class="when"><b>First working loop</b>Weeks 10–16</div><div class="body">
+      <dl>
+        <dt>M1</dt><dd>Normal-signal baseline (B0); signal emulator with amber and all-red rules; <code>bluelight</code> ambulance; virtual sensor v1.</dd>
+        <dt>M2</dt><dd>Graph forecaster benchmarked on PEMS-BAY, then trained on Chennai history; time-dependent A*.</dd>
+        <dt>M3</dt><dd>ByteTrack, stopped-vehicle and queue logic, Kalman 1–3 s prediction; Live page v1 (route, ETA, speed layer).</dd>
+      </dl>
+      <p class="done"><b>Done when (M2):</b> an ambulance on the Chennai map is routed on predicted traffic, beats B0, and the Live page shows why. This is the Semester-1 demo.</p>
+    </div></div>
+
+    <div class="phase"><div class="when"><b>Corridor, fusion &amp; CARLA</b>Weeks 17–23</div><div class="body">
+      <dl>
+        <dt>M1</dt><dd>Just-in-time trigger, four strategies, safety state machine, queue-debt recovery; fixed-distance baseline (B2); run recorder.</dd>
+        <dt>M2</dt><dd>Fusion engine; confidence model; calibration of the ambulance speed factor; rerouting with hysteresis and reservation cancelling.</dd>
+        <dt>M3</dt><dd>CARLA–SUMO co-simulation (Chennai OpenDRIVE or Town05); camera and LiDAR → perception → fusion; LiDAR clustering.</dd>
+      </dl>
+      <p class="done"><b>Done when (M3):</b> the hidden-accident scenario works end to end in fast mode, and CARLA streams frames into perception.</p>
+    </div></div>
+
+    <div class="phase"><div class="when"><b>Showcase &amp; pages</b>Weeks 24–29</div><div class="body">
+      <dl>
+        <dt>M1</dt><dd>Scenario library and fault injection (feed down, camera blind, GPS noise); calibrate the virtual sensor's miss rate from CARLA results.</dd>
+        <dt>M2</dt><dd>Google Routes adapter and live-map mode; tuning of the uncertainty model.</dd>
+        <dt>M3</dt><dd>Record the CARLA showcase runs; build the Replay (ghost race), Cab and Results pages.</dd>
+      </dl>
+      <p class="done"><b>Done when (M4):</b> the hidden accident plays in the Replay page with CARLA video. Feature freeze.</p>
+    </div></div>
+
+    <div class="phase"><div class="when"><b>Experiments &amp; write-up</b>Weeks 30–34</div><div class="body">
+      <dl>
+        <dt>ALL</dt><dd>Run the B0–B5 × scenario matrix (20+ seeds); ablations (fusion off, graph model vs LightGBM, adoption %); perception evaluation; fill the Results page from the run database; write the report, and a paper draft if your department values it.</dd>
+      </dl>
+      <p class="done"><b>Done when (M5):</b> the Results page shows final numbers and the report draft is with your guide.</p>
+    </div></div>
+
+    <div class="phase"><div class="when"><b>Final demo</b>Weeks 35–36</div><div class="body">
+      <dl>
+        <dt>ALL</dt><dd>Script the demo (Live → inject accident → Replay ghost race → Results); deploy the static replay site; make the poster; prepare for the viva.</dd>
+      </dl>
+      <p class="done"><b>Done when (M6):</b> the viva is done.</p>
+    </div></div>
+  </div>
+</section>
+
+<section id="stack">
+  <span class="eyebrow">Software</span>
+  <h2>Tech stack and repo layout</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Traffic simulation</td><td>Eclipse SUMO + TraCI / libsumo, <code>sumolib</code></td><td>Mature, free, with an emergency-vehicle model</td></tr>
+      <tr><td>Sensor simulation</td><td>CARLA 0.9.x with its SUMO co-simulation bridge</td><td>Realistic camera and LiDAR; runs on 8 GB of VRAM</td></tr>
+      <tr><td>Forecasting</td><td>PyTorch, PyTorch Geometric Temporal / LibCity, LightGBM</td><td>Reference implementations of graph traffic models</td></tr>
+      <tr><td>Perception</td><td>Ultralytics YOLO, ByteTrack, OpenCV, scikit-learn (DBSCAN)</td><td>Well-documented and fast to fine-tune</td></tr>
+      <tr><td>Backend</td><td>Python 3.12, FastAPI, WebSockets, Pydantic schemas</td><td>One language across the team</td></tr>
+      <tr><td>Maps</td><td>OSM, OSMnx (live mode), Google Routes API</td><td>Free base map plus live traffic</td></tr>
+      <tr><td>Web</td><td>React + TypeScript + MapLibre GL (+ deck.gl), a chart library such as Recharts</td><td>Fast map layers, no map-licence fees</td></tr>
+      <tr><td>Runs &amp; results</td><td>Parquet per run + SQLite/PostgreSQL index; MP4 for camera replays</td><td>Every number on the Results page can be traced back to a seed</td></tr>
+      <tr><td>Labelling</td><td>CVAT or Label Studio</td><td>For the Chennai test set</td></tr>
+      <tr><td>Ops</td><td>Docker Compose, GitHub Actions, pytest; Vercel or GitHub Pages for the replay site</td><td>Anyone can run it; examiners get a link</td></tr>
+    </tbody>
+  </table></div>
+<pre>resq/
+├─ schema/          # shared message models (VehicleState, RoadObservation, PriorityRequest, SignalState)
+├─ sim/
+│  ├─ chennai/      # OSM export, netconvert config, signal fixes, demand
+│  ├─ probes/       # crowd-GPS generator
+│  ├─ sensors/      # virtual sensor
+│  ├─ carla/        # co-simulation launch, sensor rigs, weather presets
+│  └─ scenarios/    # hidden accident, feed loss, adoption sweeps …
+├─ forecast/        # datasets, baselines, graph model, training + eval
+├─ perception/      # YOLO fine-tune, tracker, LiDAR clustering, queue/blockage logic
+├─ fusion/          # per-road fusion + confidence
+├─ routing/         # graph, time-dependent A*, rerouting policy
+├─ corridor/        # JIT trigger, strategies, safety state machine, recovery
+├─ adapters/        # sumo_traci, carla_cosim, google_routes
+├─ recorder/        # run logging → parquet / mp4
+├─ api/             # FastAPI + WebSocket server
+├─ web/             # React: /live /replay /cab /results
+└─ experiments/     # configs, seeds, result notebooks</pre>
+</section>
+
+<section id="budget">
+  <span class="eyebrow">Money</span>
+  <h2>Budget</h2>
+  <p>With no hardware, the project costs close to nothing.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Item</th><th>Note</th><th class="num">Estimate (₹)</th></tr></thead>
+    <tbody>
+      <tr><td>GPU machine</td><td>Your existing 8 GB GPU</td><td class="num">0</td></tr>
+      <tr><td>Google Maps Platform</td><td>Stay inside the free monthly quota; set a billing cap</td><td class="num">0</td></tr>
+      <tr><td>Extra training compute</td><td>Free Colab or Kaggle GPUs if needed</td><td class="num">0–2,000</td></tr>
+      <tr><td>Replay-site hosting</td><td>Vercel or GitHub Pages free tier</td><td class="num">0</td></tr>
+      <tr><td>Optional domain for the demo link</td><td>—</td><td class="num">0–1,000</td></tr>
+    </tbody>
+    <tfoot><tr><td>Total</td><td></td><td class="num">≈ 0–3,000</td></tr></tfoot>
+  </table></div>
+</section>
+
+<section id="risks">
+  <span class="eyebrow">What could go wrong</span>
+  <h2>Risks and cut lines</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Risk</th><th>Likelihood</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Integration left too late</td><td>High</td><td>Schema frozen in week 3, weekly integration from week 4, end-to-end loop by week 16 even if every part is crude.</td></tr>
+      <tr><td>CARLA struggles on 8 GB</td><td>Medium</td><td>Low quality, one camera, synchronous mode, recorded runs. Worst case, render only the hidden-accident showcase in CARLA.</td></tr>
+      <tr><td>Chennai OSM → CARLA import is messy</td><td>Medium</td><td>Use Town05 or Town10 for the CARLA showcase; the Chennai map stays in fast mode.</td></tr>
+      <tr><td>Chennai map data wrong</td><td>Medium</td><td>Manual junction check in weeks 4–9; keep fixes in version control; document assumptions.</td></tr>
+      <tr><td>Graph model underperforms</td><td>Medium</td><td>LightGBM is already a working fallback. The contribution is the fusion, not the graph model.</td></tr>
+      <tr><td>Three-person bandwidth</td><td>High</td><td>Cut in this order: GRU rung → Google live-map mode → second hospital → two-ambulance scenario → CARLA limited to one showcase run.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="open">
+  <span class="eyebrow">Your call</span>
+  <h2>Remaining choices</h2>
+  <p>The main decisions are made. These are small ones to settle in week 1.</p>
+  <div class="open">
+    <div><b>Exact map box</b><span>Draw it around Apollo Greams Road in week 1 and check it has 15–25 signals and at least two routes in.</span></div>
+    <div><b>Second hospital?</b><span>If one sits inside the box, add it and the router can choose the fastest hospital. Otherwise skip.</span></div>
+    <div><b>Project name</b><span>"ResQ" is a working name from your research. Rename freely.</span></div>
+  </div>
+  <h3>Future work (explicitly not in scope)</h3>
+  <ul>
+    <li>"Clear the lane" alerts pushed to civilian drivers ahead of the ambulance</li>
+    <li>Native mobile app for drivers as a real crowd-GPS source</li>
+    <li>Signed, authenticated ambulance requests and arbitration between multiple ambulances</li>
+    <li>Physical hardware prototype and a real-controller interface (NTCIP 1211)</li>
+    <li>V2X standards path (SAE J2735 / J2945/B) and a shadow-mode trial at a real Chennai junction</li>
+  </ul>
+</section>
+
+<footer>Based on the team's Deep Research report on emergency-vehicle preemption and the scope agreed in planning. Cost and performance figures are planning targets, not measured results.</footer>
+</main>
+</div>
+
+<script>
+(function(){
+  var g=document.getElementById('gantt'); if(!g) return;
+  function el(cls,txt,col,row){var d=document.createElement('div');d.className=cls;if(txt)d.textContent=txt;if(col)d.style.gridColumn=col;if(row)d.style.gridRow=row;g.appendChild(d);return d;}
+  el('sem','Semester 1','2 / 18',1); el('sem','Semester 2','18 / 38',1);
+  for(var w=1;w<=36;w+=4){el('wk','W'+w,(w+1)+' / span 4',2);}
+  var rows=[
+    ['M1 · Sim & signals',[[1,3,'SUMO setup'],[4,9,'Chennai twin + crowd-GPS'],[10,16,'Baseline + virtual sensor'],[17,23,'JIT corridor + safety FSM'],[24,29,'Scenarios + faults'],[30,34,'Experiments']]],
+    ['M2 · Predict & route',[[1,3,'Datasets'],[4,9,'Baselines + aggregator'],[10,16,'Graph model + TD-A*'],[17,23,'Fusion + rerouting'],[24,29,'Google live mode'],[30,34,'Ablations']]],
+    ['M3 · Percept, CARLA, web',[[1,3,'Web + IDD'],[4,9,'YOLO + live map'],[10,16,'Tracking + Live page'],[17,23,'CARLA co-sim'],[24,29,'Replay + Results pages'],[30,34,'Perception eval']]],
+    ['All · Integration',[[1,3,'Spec + schema'],[30,34,'Results + report'],[35,36,'Demo']]]
+  ];
+  rows.forEach(function(r,i){
+    var row=i+3; el('lab',r[0],'1',row);
+    r[1].forEach(function(b){el(i===3?'bar all':'bar',b[2],(b[0]+1)+' / '+(b[1]+2),row);});
+  });
+  var ms=[[9,'M1'],[16,'M2'],[23,'M3'],[29,'M4'],[34,'M5'],[36,'M6']];
+  el('lab','Milestones','1',7);
+  ms.forEach(function(m){var d=el('ms',m[1],(m[0]+1)+' / span 1',7);d.title='Week '+m[0];});
+})();
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav.route a'));
+  if(!('IntersectionObserver' in window)||!links.length) return;
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(a){a.classList.remove('on');});var a=map[e.target.id];if(a)a.classList.add('on');}});},{rootMargin:'-20% 0px -70% 0px'});
+  Object.keys(map).forEach(function(id){var s=document.getElementById(id);if(s)io.observe(s);});
+})();
+</script>
+

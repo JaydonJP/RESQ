@@ -1,0 +1,114 @@
+export type GeoPoint = { lat: number; lon: number };
+
+export type RouteOption = {
+  route_id: string;
+  label: string;
+  edge_ids: string[];
+  eta_s: number;
+  selected: boolean;
+  reason: string;
+  geometry: GeoPoint[];
+};
+
+export type SignalState = {
+  intersection_id: string;
+  phase: string;
+  active_approach: string | null;
+  seconds_to_change: number | null;
+  conflicting_green: boolean;
+};
+
+export type Snapshot = {
+  schema_version: string;
+  generated_at: string;
+  sim_time_s: number;
+  scenario: string;
+  vehicle: {
+    vehicle_id: string;
+    position: GeoPoint;
+    speed_mps: number;
+    heading_deg: number;
+    route_id: string;
+    progress: number;
+  };
+  roads: {
+    road_id: string;
+    travel_time_s: number;
+    confidence: number;
+    blockage: boolean;
+    explanation: string;
+  }[];
+  routes: RouteOption[];
+  signals: SignalState[];
+  decisions: { at_s: number; kind: string; message: string }[];
+  controls: {
+    accident: boolean;
+    macro_feed: boolean;
+    camera: boolean;
+    adoption_percent: number;
+  };
+  health: {
+    macro_age_s: number;
+    perception_online: boolean;
+    overall_confidence: number;
+  };
+  incident: GeoPoint | null;
+};
+
+export type BaselineId = "B0" | "B1" | "B2" | "B3" | "B4" | "B5";
+
+export type RunMetrics = {
+  run_id: string;
+  baseline: BaselineId;
+  scenario: string;
+  seed: number;
+  ambulance_travel_time_s: number;
+  stops: number;
+  route_switches: number;
+  green_on_arrival_rate: number;
+  cross_traffic_added_delay_s: number;
+  recovery_time_s: number;
+  reroute_reaction_time_s: number | null;
+  route_regret_s: number;
+  conflicting_green_violations: number;
+};
+
+export type GhostReplay = {
+  replay_id: string;
+  scenario: string;
+  seed: number;
+  duration_s: number;
+  routes: RouteOption[];
+  frames: {
+    t_s: number;
+    event: string | null;
+    vehicles: {
+      baseline: BaselineId;
+      position: GeoPoint;
+      progress: number;
+      arrived: boolean;
+    }[];
+  }[];
+  metrics: RunMetrics[];
+  origin: GeoPoint | null;
+  hospital: GeoPoint | null;
+  incident: GeoPoint | null;
+  assumptions: string[];
+  demonstration_only: boolean;
+};
+
+export type ResultsSummary = {
+  generated_at: string;
+  total_runs: number;
+  scenarios: string[];
+  baselines: {
+    baseline: BaselineId;
+    runs: number;
+    mean_travel_time_s: number;
+    ci95_travel_time_s: number;
+    p95_travel_time_s: number;
+    mean_green_on_arrival_rate: number;
+    mean_cross_traffic_delay_s: number;
+    mean_stops: number;
+  }[];
+};

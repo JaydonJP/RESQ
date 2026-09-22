@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<additional>
+  <vType id="car" vClass="passenger" length="4.4" minGap="2.0" maxSpeed="16.7" sigma="0.5" probability="0.52"/>
+  <vType id="motorcycle" vClass="motorcycle" length="2.0" width="0.8" minGap="1.0" maxSpeed="16.7" probability="0.28"/>
+  <vType id="auto" vClass="taxi" length="2.8" width="1.4" minGap="1.2" maxSpeed="13.9" probability="0.10"/>
+  <vType id="bus" vClass="bus" length="12" minGap="2.5" maxSpeed="12.5" probability="0.07"/>
+  <vType id="truck" vClass="truck" length="8" minGap="2.5" maxSpeed="11.1" probability="0.03"/>
+  <vType id="ambulance" vClass="emergency" guiShape="emergency" color="1,0.15,0.1" length="5.2" minGap="1.0" maxSpeed="22.2">
+    <param key="has.bluelight.device" value="true"/>
+  </vType>
+</additional>
