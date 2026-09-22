@@ -73,6 +73,19 @@ the review demonstration; do not present it as a SUMO validation run.
 
 ## Architecture
 
+The target system architecture combines traffic forecasting, ambulance camera
+and LiDAR perception, routing, confidence-aware data fusion, signal priority,
+and safety-constrained corridor control. The FastAPI backend exposes the
+resulting decisions to the driver application, control-room dashboard, and
+replay/experiment store.
+
+![ResQ system architecture](docs/system-architecture.png)
+
+The current review build implements the FastAPI backend, driver web app,
+deterministic demonstration simulator, routing, fusion primitives, and safety
+state-machine components. YOLO inference, live traffic feeds, and full SUMO or
+CARLA decision-loop integration remain planned integration work.
+
 ```text
 checked-in OSM road graph -> directed routing -> staged incident demo -> API -> React
 future SUMO/CARLA integration -> observations -> fusion -> route policy -> validation
