@@ -6,7 +6,7 @@ import argparse
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from math import asin, cos, radians, sin, sqrt
+from math import asin, cos, pi, radians, sin, sqrt
 from pathlib import Path
 
 # This file is intentionally runnable directly from PowerShell, like the
@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from routing import RoadEdge, RouteGraph
 from schema import GeoPoint
 from sim.chennai.roads import HOSPITAL, ORIGIN
-
 
 HERE = Path(__file__).resolve().parent
 GENERATED = HERE / "generated"
@@ -124,6 +123,13 @@ def write_ambulance_route(route_path: Path, edge_ids: tuple[str, ...]) -> None:
     ET.ElementTree(root).write(route_path, encoding="UTF-8", xml_declaration=True)
 
 
+def _circle(x: float, y: float, radius: float, points: int = 24) -> str:
+    return " ".join(
+        f"{x + radius * cos(2 * pi * i / points):.2f},{y + radius * sin(2 * pi * i / points):.2f}"
+        for i in range(points)
+    )
+
+
 def write_scenario_additionals(
     path: Path,
     edge_ids: tuple[str, ...],
@@ -138,6 +144,24 @@ def write_scenario_additionals(
         ("apollo_hospital", f"HOSPITAL - {DESTINATION_LABEL}", goal_node, "1,0.47,0"),
     ):
         x, y = junctions[node_id]
+        # sumo-gui does not reliably draw plain POIs, so mark each end with a
+        # white-ringed disc polygon; the POI keeps the label for hover/inspection.
+        for suffix, radius, disc_color, layer in (
+            ("ring", 19.0, "1,1,1", "101"),
+            ("disc", 14.0, color, "102"),
+        ):
+            ET.SubElement(
+                root,
+                "poly",
+                {
+                    "id": f"{poi_id}_{suffix}",
+                    "type": "scenario_marker",
+                    "color": disc_color,
+                    "layer": layer,
+                    "fill": "true",
+                    "shape": _circle(x, y, radius),
+                },
+            )
         ET.SubElement(
             root,
             "poi",

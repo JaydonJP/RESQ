@@ -11,7 +11,12 @@ import sys
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-BOUNDING_BOX = "80.2370,13.0520,80.2600,13.0700"  # west,south,east,north
+# Runnable directly from PowerShell, so make the project package importable.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from sim.chennai.landscape import BOUNDING_BOX  # noqa: E402
+from sim.chennai.landscape import tidy as tidy_landscape  # noqa: E402
+
 HERE = Path(__file__).resolve().parent
 GENERATED = HERE / "generated"
 
@@ -57,11 +62,43 @@ def _download_osm(bbox: str, destination: Path) -> None:
     print(f"Saved {destination} ({destination.stat().st_size:,} bytes)")
 
 
+def build_landscape(
+    polyconvert: str, network: Path, osm_file: Path, bbox: str, env: dict[str, str]
+) -> None:
+    """Import OSM areas as a background map, then tidy them for sumo-gui."""
+
+    polygons = GENERATED / "landscape.poly.xml"
+    _run(
+        [
+            polyconvert,
+            "--net-file",
+            str(network),
+            "--osm-files",
+            str(osm_file),
+            "--type-file",
+            str(HERE / "landscape.typ.xml"),
+            "--osm.keep-full-type",
+            "--osm.merge-relations",
+            "50",
+            "--discard",
+            "--output-file",
+            str(polygons),
+        ],
+        env=env,
+    )
+    print(f"Landscape tidied: {tidy_landscape(polygons, network, osm_file, bbox)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bbox", default=BOUNDING_BOX)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--period", type=float, default=1.5)
+    parser.add_argument(
+        "--landscape-only",
+        action="store_true",
+        help="Rebuild only the background map from the existing download and network",
+    )
     args = parser.parse_args()
 
     sumo_home = _sumo_home()
@@ -75,8 +112,13 @@ def main() -> None:
 
     GENERATED.mkdir(parents=True, exist_ok=True)
     osm_file = GENERATED / "thousand_lights.osm.xml"
-    _download_osm(args.bbox, osm_file)
     network = GENERATED / "thousand_lights.net.xml"
+    if args.landscape_only:
+        if not osm_file.exists() or not network.exists():
+            raise SystemExit("Run a full build first; the OSM download or network is missing")
+        build_landscape(polyconvert, network, osm_file, args.bbox, child_env)
+        return
+    _download_osm(args.bbox, osm_file)
     _run(
         [
             netconvert,
@@ -121,21 +163,7 @@ def main() -> None:
         ],
         env=child_env,
     )
-    _run(
-        [
-            polyconvert,
-            "--net-file",
-            str(network),
-            "--osm-files",
-            str(osm_file),
-            "--type-file",
-            str(HERE / "landscape.typ.xml"),
-            "--osm.keep-full-type",
-            "--output-file",
-            str(GENERATED / "landscape.poly.xml"),
-        ],
-        env=child_env,
-    )
+    build_landscape(polyconvert, network, osm_file, args.bbox, child_env)
     _run(
         [
             sys.executable,

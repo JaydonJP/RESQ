@@ -26,12 +26,12 @@
             <colorScheme name="by type">
                 <entry color="39,169,111" name="traffic_light"/>
                 <entry color="39,169,111" name="traffic_light_unregulated"/>
-                <entry color="244,181,62" name="priority"/>
-                <entry color="226,103,88" name="priority_stop"/>
-                <entry color="112,139,161" name="right_before_left"/>
-                <entry color="112,139,161" name="allway_stop"/>
-                <entry color="170,178,181" name="unregulated"/>
-                <entry color="170,178,181" name="dead_end"/>
+                <entry color="128,128,128" name="priority"/>
+                <entry color="128,128,128" name="priority_stop"/>
+                <entry color="128,128,128" name="right_before_left"/>
+                <entry color="128,128,128" name="allway_stop"/>
+                <entry color="128,128,128" name="unregulated"/>
+                <entry color="128,128,128" name="dead_end"/>
             </colorScheme>
         </junctions>
         <additionals addMode="0" add_minSize="1.00" add_exaggeration="1.00"

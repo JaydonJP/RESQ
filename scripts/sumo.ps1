@@ -1,5 +1,6 @@
 param(
     [switch]$Build,
+    [switch]$Landscape,
     [switch]$Headless,
     [int]$DelayMs = 50
 )
@@ -15,6 +16,12 @@ if (-not (Test-Path -LiteralPath $python)) {
 
 if ($Build -or -not (Test-Path -LiteralPath 'sim\chennai\generated\thousand_lights.net.xml')) {
     & $python 'sim\chennai\build_network.py'
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} elseif ($Landscape) {
+    # Redraw the background map and route markers without re-downloading OSM.
+    & $python 'sim\chennai\build_network.py' --landscape-only
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    & $python 'sim\chennai\build_ambulance_route.py'
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
