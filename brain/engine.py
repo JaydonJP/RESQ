@@ -66,7 +66,9 @@ class DecisionEngine:
     hysteresis state for route selection and one IntersectionController per
     virtual signal checkpoint along the corridor."""
 
-    def __init__(self, network: RoadNetwork | None = None, plan: IncidentPlan | None = None) -> None:
+    def __init__(
+        self, network: RoadNetwork | None = None, plan: IncidentPlan | None = None
+    ) -> None:
         self.network = network or RoadNetwork()
         self.plan = plan or demo_plan()
 
@@ -116,7 +118,11 @@ class DecisionEngine:
         return estimates
 
     @staticmethod
-    def _path_eta(edge_ids: tuple[str, ...], estimates: dict[str, RoadEstimate], static_travel_s: dict[str, float]) -> float:
+    def _path_eta(
+        edge_ids: tuple[str, ...],
+        estimates: dict[str, RoadEstimate],
+        static_travel_s: dict[str, float],
+    ) -> float:
         return sum(
             estimates[edge_id].travel_time_s if edge_id in estimates else static_travel_s[edge_id]
             for edge_id in edge_ids
@@ -156,10 +162,14 @@ class DecisionEngine:
             self._selected_route_id = other_route_id
 
         active_sources = sorted(
-            {source for source in (
-                "historical" if controls.historical_model_enabled else None,
-                "spatial_temporal" if controls.spatial_temporal_model_enabled else None,
-            ) if source}
+            {
+                source
+                for source in (
+                    "historical" if controls.historical_model_enabled else None,
+                    "spatial_temporal" if controls.spatial_temporal_model_enabled else None,
+                )
+                if source
+            }
         )
         if len(active_sources) < 2:
             decisions.append(
@@ -176,7 +186,9 @@ class DecisionEngine:
 
         path = self.plan.normal if self._selected_route_id == "route-a" else self.plan.bypass
         selected_eta = etas[self._selected_route_id]
-        progress = min(1.0, (now_s % (selected_eta + 15)) / selected_eta) if selected_eta > 0 else 0.0
+        progress = (
+            min(1.0, (now_s % (selected_eta + 15)) / selected_eta) if selected_eta > 0 else 0.0
+        )
         position = point_along(path, progress)
         ahead = point_along(path, min(1.0, progress + 0.002))
         heading = _bearing(position, ahead)
@@ -202,7 +214,10 @@ class DecisionEngine:
                 edge_ids=list(self.plan.bypass.edges),
                 eta_s=bypass_eta,
                 selected=self._selected_route_id == "route-b",
-                reason="Forecast-fused ETA shows the bypass beating the regular route by the hysteresis margin",
+                reason=(
+                    "Forecast-fused ETA shows the bypass beating the regular route"
+                    " by the hysteresis margin"
+                ),
                 geometry=list(self.plan.bypass.geometry),
             ),
         ]
@@ -214,7 +229,10 @@ class DecisionEngine:
             DecisionEvent(
                 at_s=now_s,
                 kind="route",
-                message=f"{self._selected_route_id} selected from {len(active_sources) or 0}-model forecast fusion",
+                message=(
+                    f"{self._selected_route_id} selected from"
+                    f" {len(active_sources) or 0}-model forecast fusion"
+                ),
             ),
         )
 
