@@ -118,7 +118,7 @@ class FastScenarioRunner:
             recovery_time_s=round(recovery, 3),
             reroute_reaction_time_s=round(reaction_time, 3) if reaction_time else None,
             route_regret_s=round(max(0, road_time - oracle_time), 3),
-            conflicting_green_violations=0,
+            conflicting_green_violations=None,
         )
 
     def matrix(

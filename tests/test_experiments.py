@@ -23,7 +23,7 @@ def test_full_system_beats_no_system_in_hidden_accident() -> None:
     )
     assert b5.ambulance_travel_time_s < b0.ambulance_travel_time_s
     assert b5.route_switches == 1
-    assert b5.conflicting_green_violations == 0
+    assert b5.conflicting_green_violations is None
 
 
 def test_matrix_contains_every_requested_cell() -> None:

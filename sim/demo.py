@@ -209,7 +209,7 @@ class DemoSimulation:
                 phase=SignalPhase.PRE_CLEAR if index == 0 else SignalPhase.REQUEST_VALID,
                 active_approach="northbound" if selected == "route-b" else "eastbound",
                 seconds_to_change=max(0, 4 - index),
-                conflicting_green=False,
+                conflicting_green=None,
             )
             for index, signal_id in enumerate(("TL-04", "TL-07", "TL-11"))
         ]

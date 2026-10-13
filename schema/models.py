@@ -95,7 +95,7 @@ class SignalState(StrictModel):
     phase: SignalPhase
     active_approach: str | None = None
     seconds_to_change: float | None = Field(default=None, ge=0)
-    conflicting_green: bool = False
+    conflicting_green: bool | None = None  # None means no signal-phase measurement was made.
 
 
 class RouteOption(StrictModel):
@@ -194,7 +194,7 @@ class RunMetrics(StrictModel):
     recovery_time_s: float = Field(ge=0)
     reroute_reaction_time_s: float | None = Field(default=None, ge=0)
     route_regret_s: float = Field(ge=0)
-    conflicting_green_violations: int = Field(default=0, ge=0)
+    conflicting_green_violations: int | None = Field(default=None, ge=0)
 
 
 class ReplayVehicle(StrictModel):

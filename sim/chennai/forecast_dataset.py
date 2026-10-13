@@ -308,6 +308,24 @@ def _worker(payload: tuple[int, list[str], int, str]) -> tuple[int, np.ndarray, 
 # -------------------------------------------------------------------- assembly
 
 
+def _osm_names() -> dict[str, str]:
+    """Street names from the checked-in OSM extract.
+
+    netconvert is not asked for street names, so the imported edges carry none. The
+    routing extract keeps them against the same way identifiers, which is enough to
+    label a monitored segment in the interface.
+    """
+    source = HERE / "roads.json"
+    if not source.is_file():
+        return {}
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    return {
+        str(way["id"]): way["name"]
+        for way in payload.get("ways", [])
+        if way.get("name") and way["name"] != "Unnamed road"
+    }
+
+
 def _write_segment_geometry(
     net: sumolib.net.Net, segments: list[str], free_flow: np.ndarray, lengths: np.ndarray
 ) -> Path:
@@ -318,9 +336,11 @@ def _write_segment_geometry(
     lets a corridor forecast be projected onto the OSM routing graph in roads.json.
     """
     route = set(ambulance_edges())
+    names = _osm_names()
     features = []
     for position, segment in enumerate(segments):
         edge = net.getEdge(segment)
+        way_id = segment.lstrip("-").split("#")[0]
         shape = [net.convertXY2LonLat(x, y) for x, y in edge.getShape()]
         features.append(
             {
@@ -328,9 +348,9 @@ def _write_segment_geometry(
                 "properties": {
                     "segment_id": segment,
                     "index": position,
-                    "osm_way_id": segment.lstrip("-").split("#")[0],
+                    "osm_way_id": way_id,
                     "reverse": segment.startswith("-"),
-                    "name": edge.getName() or "",
+                    "name": edge.getName() or names.get(way_id, ""),
                     "length_m": round(float(lengths[position]), 1),
                     "free_flow_mph": round(float(free_flow[position] * MPS_TO_MPH), 2),
                     "on_ambulance_route": segment in route,
@@ -441,13 +461,38 @@ def build(days: int, segment_count: int, seed: int, workers: int) -> Path:
     return output
 
 
+def export_geometry() -> Path:
+    """Rewrite the published segment shapes from an existing dataset.
+
+    Geometry needs pyproj for the network's geo-projection, while the simulation
+    itself does not, so this stays separately runnable rather than forcing a rebuild.
+    """
+    archive = PROCESSED / f"{STEM}.npz"
+    if not archive.is_file():
+        raise SystemExit(f"build the dataset first: {archive} is missing")
+    net = sumolib.net.readNet(str(NETWORK))
+    with np.load(archive, allow_pickle=False) as data:
+        segments = [str(item) for item in data["ids"].tolist()]
+        free_flow = data["free_flow_mph"].astype(np.float32) / MPS_TO_MPH
+        lengths = data["length_m"].astype(np.float32)
+    return _write_segment_geometry(net, segments, free_flow, lengths)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--days", type=int, default=21)
     parser.add_argument("--segments", type=int, default=120)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument(
+        "--geometry-only",
+        action="store_true",
+        help="Rewrite segments.geojson from the existing dataset and exit",
+    )
     arguments = parser.parse_args()
+    if arguments.geometry_only:
+        print(f"segments: {export_geometry()}")
+        return
     path = build(arguments.days, arguments.segments, arguments.seed, arguments.workers)
     print(f"prepared: {path}")
 

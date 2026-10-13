@@ -99,6 +99,56 @@ stored in the manifest as `vehicle_sampled_fraction`. And every number in this d
 comes from the microsimulation, so accuracy measured on it is a statement about the
 simulator, not about measured Chennai traffic.
 
+## Measured results
+
+Mean absolute error in mph on the held-out test split, against the two required
+baselines. Every figure below was produced by the commands in this document on an
+RTX 4050 laptop; none is copied from a paper.
+
+### METR-LA (public benchmark, seed 42)
+
+| Predictor | +5 min | +15 min | +30 min | +60 min |
+|---|---|---|---|---|
+| Graph WaveNet | **2.28** | **2.76** | **3.16** | **3.63** |
+| Persistence | 2.81 | 3.50 | 4.21 | 5.38 |
+| Historical average | 4.19 | 4.19 | 4.19 | 4.19 |
+
+Best epoch 69, 63 minutes of training, 90 % conformal intervals covering 89.2 % of
+held-out errors. The published Graph WaveNet paper reports 2.69, 3.07 and 3.53 mph at
+15, 30 and 60 minutes; this smaller 62 k-parameter implementation lands within about
+3 % of those numbers, which is the evidence that the pipeline is sound.
+
+### PEMS-BAY (public benchmark, seed 42)
+
+| Predictor | +5 min | +15 min | +30 min | +60 min |
+|---|---|---|---|---|
+| Graph WaveNet | **0.87** | **1.35** | **1.71** | **2.06** |
+| Persistence | 0.97 | 1.59 | 2.17 | 3.04 |
+| Historical average | 2.63 | 2.63 | 2.63 | 2.63 |
+
+Best epoch 54, 59 minutes of training, intervals covering 91.0 % of held-out errors.
+The published paper reports 1.30, 1.63 and 1.95 mph at 15, 30 and 60 minutes, so this
+independent replication also lands within a few per cent on a second sensor graph.
+
+### CHENNAI-SIM (simulated corridor, seed 42)
+
+| Predictor | +5 min | +15 min | +30 min | +60 min |
+|---|---|---|---|---|
+| Graph WaveNet | **2.85** | **2.86** | **2.87** | **2.91** |
+| Persistence | 3.86 | 3.94 | 3.95 | 4.02 |
+| Historical average | 4.03 | 4.01 | 3.98 | 3.93 |
+
+Best epoch 119, 24 minutes of training, intervals covering 89.3 % of held-out errors.
+The model is roughly 27 % better than either baseline at every horizon.
+
+Two honest observations about this table. The error is almost flat across horizons,
+unlike METR-LA where it grows from 2.28 to 3.63. Five-minute mean speeds on short
+urban links are small-sample averages, so much of the error is sampling noise that no
+model can remove; what varies with the horizon is the predictable part, and that part
+is small here relative to the noise floor. Step-to-step jitter across the monitored
+set has a median of 3.2 mph and ranges from 0.9 to 13.9, so per-segment accuracy
+varies widely. And, again: these are simulator numbers, not Chennai measurements.
+
 ## How the model reaches the decision
 
 `forecast/runtime.py` loads the corridor checkpoint, its calibration and the dataset,

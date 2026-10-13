@@ -15,7 +15,7 @@ export type SignalState = {
   phase: string;
   active_approach: string | null;
   seconds_to_change: number | null;
-  conflicting_green: boolean;
+  conflicting_green: boolean | null;
 };
 
 export type Snapshot = {
@@ -91,7 +91,7 @@ export type RunMetrics = {
   recovery_time_s: number;
   reroute_reaction_time_s: number | null;
   route_regret_s: number;
-  conflicting_green_violations: number;
+  conflicting_green_violations: number | null;
 };
 
 export type GhostReplay = {

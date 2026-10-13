@@ -48,7 +48,14 @@ export default function ForecastPage() {
     () => segments?.segments.filter((item) => item.on_route) ?? [],
     [segments],
   );
-  const activeId = selected ?? routeSegments[0]?.segment_id ?? segments?.segments[0]?.segment_id ?? null;
+  // Default to the slowest link on the ambulance route: that is the one the routing
+  // decision actually turns on, and a busy segment shows the model's behaviour
+  // rather than the sampling noise of a near-empty road.
+  const focus = useMemo(() => {
+    const pool = routeSegments.length ? routeSegments : (segments?.segments ?? []);
+    return [...pool].sort((a, b) => b.congestion - a.congestion)[0]?.segment_id ?? null;
+  }, [routeSegments, segments]);
+  const activeId = selected ?? focus;
 
   useEffect(() => {
     if (!activeId) return;

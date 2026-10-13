@@ -1,7 +1,7 @@
 """Deterministic intersection controller; ML never owns a signal transition."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 
 from schema import PriorityRequest, SignalPhase, SignalState
 
@@ -33,15 +33,30 @@ class IntersectionController:
         now_s: float,
         request: PriorityRequest | None = None,
         *,
+        now_at: datetime,
         ev_passed: bool = False,
+        conflicting_green: bool | None = None,
     ) -> SignalState:
+        """Advance using an explicit wall-clock instant paired with ``now_s``.
+
+        Simulations and replays must derive both values from the same clock.
+        ``conflicting_green`` is unknown until an external signal observer measures it.
+        """
+        if now_at.utcoffset() is None:
+            raise ValueError("now_at must be timezone-aware")
+        if request is not None and request.expires_at.utcoffset() is None:
+            raise ValueError("request.expires_at must be timezone-aware")
         elapsed = now_s - self.entered_at_s
-        if request is not None and request.expires_at > datetime.now(UTC):
+        if request is not None and request.expires_at > now_at:
             self._request = request
             self.approach = request.approach_id
 
-        expired = self._request is not None and self._request.expires_at <= datetime.now(UTC)
-        if self.phase == SignalPhase.NORMAL and self._request and not expired:
+        expired = self._request is not None and self._request.expires_at <= now_at
+        if self.phase in {SignalPhase.REQUEST_VALID, SignalPhase.PRE_CLEAR} and expired:
+            self._request = None
+            self.approach = None
+            self._transition(SignalPhase.NORMAL, now_s)
+        elif self.phase == SignalPhase.NORMAL and self._request and not expired:
             self._transition(SignalPhase.REQUEST_VALID, now_s)
         elif self.phase == SignalPhase.REQUEST_VALID:
             self._transition(SignalPhase.PRE_CLEAR, now_s)
@@ -74,6 +89,6 @@ class IntersectionController:
             phase=self.phase,
             active_approach=self.approach,
             seconds_to_change=seconds_to_change,
-            conflicting_green=False,
+            conflicting_green=conflicting_green,
         )
 
