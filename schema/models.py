@@ -13,6 +13,8 @@ class StrictModel(BaseModel):
 class SourceKind(StrEnum):
     MACRO = "macro"
     PERCEPTION = "perception"
+    HISTORICAL = "historical"
+    SPATIAL_TEMPORAL = "spatial_temporal"
     FUSED = "fused"
 
 
@@ -119,6 +121,9 @@ class ControlState(StrictModel):
     macro_feed: bool = True
     camera: bool = True
     adoption_percent: int = Field(default=10, ge=1, le=100)
+    historical_model_enabled: bool = True
+    spatial_temporal_model_enabled: bool = True
+    congestion_scenario: bool = False
 
 
 class ForecastSegment(StrictModel):

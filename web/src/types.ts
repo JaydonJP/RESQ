@@ -46,6 +46,9 @@ export type Snapshot = {
     macro_feed: boolean;
     camera: boolean;
     adoption_percent: number;
+    historical_model_enabled: boolean;
+    spatial_temporal_model_enabled: boolean;
+    congestion_scenario: boolean;
   };
   health: {
     macro_age_s: number;
